@@ -16,4 +16,12 @@ def get_user_username(username : str,db : Session):
 def hashing_password(password : str):
     hashed_password=password_context.hash(password)
     return hashed_password
+
+def get_product(product_id : int, db : Session ):
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    return product
+
+def get_cart(id : int, db : Session ):
+    cart = db.query(models.Cart).filter(models.Cart.id == id).first()
+    return cart
     

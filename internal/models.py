@@ -29,6 +29,7 @@ class User(Base):
     profile =relationship("Profile", back_populates="user")
     orders = relationship("Order", back_populates="users")
     payments = relationship("Payment", back_populates="users")
+    cart = relationship("Cart", back_populates="user")
     
     
 class Profile(Base):
@@ -41,15 +42,6 @@ class Profile(Base):
     user = relationship("User", back_populates="profile")
     
     
-class Category(Base):
-    __tablename__ = "categories"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-    created_at = Column(DateTime, default=func.now())
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
-    products = relationship("Product" , back_populates="category")
-
 
 class Product(Base):
     __tablename__ = "products"
@@ -63,12 +55,12 @@ class Product(Base):
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     user_id = Column(Integer, ForeignKey("users.id"))
-    category_id = Column(Integer, ForeignKey("categories.id"))
+
 
     user = relationship("User", back_populates="products")
     orders = relationship("Order", back_populates="products")
-    category = relationship("Category", back_populates="products")
     images = relationship("ProductImage" , back_populates="product")
+    cart = relationship("Cart" , back_populates="product")
     
 class ProductImage(Base):
     __tablename__ = "product_images"
@@ -82,9 +74,7 @@ class Order(Base):
     __tablename__ = "orders"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
     quantity = Column(Integer)
-    total_price = Column(Integer, index=True)
     is_payed = Column(Boolean, default=False)
     user_id = Column(Integer, ForeignKey("users.id"))
     product_id = Column(Integer, ForeignKey("products.id"))
@@ -104,3 +94,14 @@ class Payment(Base):
     
     users =relationship("User" , back_populates="payments")
     orders =relationship("Order" , back_populates="payments")
+    
+class Cart(Base):
+    __tablename__ = "carts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    product_id = Column(Integer, ForeignKey("products.id"))
+    quantity = Column(Integer)
+    user =relationship("User" , back_populates="cart")
+    product =relationship("Product" , back_populates="cart")
+    
