@@ -1,15 +1,9 @@
-from fastapi import FastAPI
-
-from internal.database import engine
-from internal import models, schemas
-
-models.Base.metadata.create_all(bind=engine)
+from fastapi import FastAPI, Depends,HTTPException,status
+from imbuto.routers import user, imbuto
 
 
 
 app = FastAPI()
 
+app.include_router(user.router)
 
-@app.get('/')
-def index():
-    return {'message':'Imbuto Derivering System'}
