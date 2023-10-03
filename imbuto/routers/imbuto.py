@@ -5,7 +5,8 @@ from internal import models, schemas
 from sqlalchemy.orm import Session
 from . import crud
 from fastapi.responses import JSONResponse
-
+from internal.login import get_current_user
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
 
 router = APIRouter(
@@ -33,7 +34,9 @@ async def all_product(Limit : int =10,db: Session = Depends(get_db)):
     return all_p
 
 @router.post('/cart/{product_id}/')
-def add_to_cat(product_id : int ,request: schemas.Cart ,db: Session = Depends(get_db)):
+async def add_to_cat(product_id : int ,request: schemas.Cart ,db: Session = Depends(get_db),
+                     current_user: OAuth2PasswordRequestForm = Depends(get_current_user)
+                     ):
     product =crud.get_product(product_id,db)
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND
@@ -58,12 +61,12 @@ def add_to_cat(product_id : int ,request: schemas.Cart ,db: Session = Depends(ge
     return 'Product Added Successfully'
 
 @router.get('/cart-details/', response_model=List[schemas.ShowCart])
-def cart(db : Session = Depends(get_db)):
+async def cart(db : Session = Depends(get_db)):
     cart = db.query(models.Cart).all()
     return cart
 
 @router.post('/order/{cart_id}/')
-def make_order(cart_id : int , db : Session = Depends(get_db)):
+async def make_order(cart_id : int , db : Session = Depends(get_db)):
     cart = crud.get_cart(cart_id , db)
     if not cart:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND
@@ -81,7 +84,5 @@ def make_order(cart_id : int , db : Session = Depends(get_db)):
     db.commit()
     db.refresh(new_order)
     return 'order sent successfully !'
-    
-    
     
     

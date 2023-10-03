@@ -14,8 +14,10 @@ def get_user_username(username : str,db : Session):
     return user_obj
 
 def hashing_password(password : str):
-    hashed_password=password_context.hash(password)
-    return hashed_password
+    return password_context.hash(password)
+
+def verify_password(plain_password, hashed_password):
+    return password_context.verify(plain_password, hashed_password)
 
 def get_product(product_id : int, db : Session ):
     product = db.query(models.Product).filter(models.Product.id == product_id).first()
@@ -25,3 +27,7 @@ def get_cart(id : int, db : Session ):
     cart = db.query(models.Cart).filter(models.Cart.id == id).first()
     return cart
     
+    
+def get_user(db : Session , username : str):
+    user = db.query(models.User).filter(models.User.username == username).first()
+    return user
