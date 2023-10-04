@@ -45,13 +45,17 @@ async def add_to_cat(product_id : int ,request: schemas.Cart ,db: Session = Depe
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND
                             , detail=" Product  Doesn't exist"
                             )
-        
+    cart = db.query(models.Cart).filter(models.Cart.user_id == current_customer_user.id)
+    for item in cart:
+        if item.product_id == product_id:
+            return {'message' : 'product is already in cart Go to update cart'}    
     new_cat = models.Cart(
         user_id = current_customer_user.id,
         product_id =product.id,
         quantity = request.quantity
         
     )
+    
     # product_obj = db.query(models.Product).filter(models.Product.id == product_id)
     prod_quantity = product.quantity
     if prod_quantity < int(request.quantity):
@@ -64,10 +68,23 @@ async def add_to_cat(product_id : int ,request: schemas.Cart ,db: Session = Depe
     db.commit()
     return 'Product Added Successfully'
 
-@router.get('/cart-details/', response_model=List[schemas.ShowCart])
+@router.get('/cart-details/')
 async def cart(db : Session = Depends(get_db),current_customer_user: schemas.User = Depends(get_current_customer_user)):
     cart = db.query(models.Cart).filter(models.Cart.user_id == current_customer_user.id)
-    return cart
+    total_price = 0
+    data=[]
+    for item in cart: 
+        items ={
+            'product_name' : item.product.name,
+            'quantity' : item.quantity,
+            'price' : item.product.price,
+            'total_price': item.product.price * item.quantity
+        }
+        data.append(items)
+        total_price = (item.product.price * item.quantity)+ total_price
+    total = {'Amount to pay' : total_price}
+    
+    return data ,total
 
 @router.post('/order/{cart_id}/')
 async def make_order(cart_id : int , db : Session = Depends(get_db),current_customer_user: schemas.User = Depends(get_current_customer_user)):
@@ -76,6 +93,8 @@ async def make_order(cart_id : int , db : Session = Depends(get_db),current_cust
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND
                             , detail=" Cart doesn't exists!"
                             )
+
+            
     new_order = models.Order(
         
         quantity =cart.quantity,
@@ -91,7 +110,7 @@ async def make_order(cart_id : int , db : Session = Depends(get_db),current_cust
 
 @router.get('/product')
 async def user_product(db: Session = Depends(get_db)
-           ,current_admin_user: schemas.User = Depends(get_current_admin_user)
+           ,current_admin_user: schemas.User = Depends(get_current_admin_user),
            ):
     
     products = db.query(models.Product).filter(models.Product.user_id == current_admin_user.id)
@@ -106,6 +125,34 @@ async def user_product(db: Session = Depends(get_db)
         }
 
     return JSONResponse(items)
+
+@router.put("/update-cart/{product_id}/")
+async def update_cart_item(product_id: int, quantity: int = Form(),db: Session = Depends(get_db),
+                        current_customer_user: schemas.User = Depends(get_current_customer_user)
+                        ):
+    cart = db.query(models.Cart).filter(models.Cart.user_id == current_customer_user.id)
+    for item in cart:
+        if item.product_id == product_id:
+            item.quantity = quantity
+            db.commit()
+            return {"message": "Cart item updated"}
+    raise HTTPException(status_code=404, detail="Item not found in cart")
+
+@router.delete("/remove-from-cart/{product_id}")
+async def remove_from_cart(product_id: int,
+                           current_customer_user: schemas.User = Depends(get_current_customer_user)
+                           ,db : Session = Depends(get_db)):
+    cart = db.query(models.Cart).filter(models.Cart.user_id == current_customer_user.id)
+
+    for item in cart:
+        if item.product_id == product_id:
+            cart.remove(item)
+            db.commit()
+            return {"message": "Item removed from cart"}
+    raise HTTPException(status_code=404, detail="Item not found in cart")
+
+
+
 
 
     
