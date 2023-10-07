@@ -11,7 +11,7 @@ router =APIRouter(
     tags=['Authentication']
 )
 
-SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+SECRET_KEY = "c48e495259610da4741e379e0c9414c8cfa9b6751fbf2fbac01d479d448dccde"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -52,16 +52,10 @@ async def get_current_user(db : Session = Depends(get_db),token: str =Depends(oa
 async def get_current_admin_user(
     current_user: schemas.User = Depends(get_current_user)
 ):
-    if  current_user.is_customer:
+    if  not current_user.is_admin:
         raise HTTPException(status_code=400, detail="You're not admin user please")
     return current_user
 
-async def get_current_customer_user(
-    current_user: schemas.User = Depends(get_current_user)
-):
-    if  not current_user.is_customer:
-        raise HTTPException(status_code=400, detail="Please you're not customer !")
-    return current_user
 
 @router.post("/token", response_model=schemas.Token)
 async def login(

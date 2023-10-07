@@ -20,42 +20,35 @@ class Login(BaseModel):
 class Product(BaseModel):
     name : str
     description: str
-    quantity : int
     price : int
     
-class ShowProduct(BaseModel):
-    name : str
-    description: str
-    quantity : int
+    
+    class Config:
+        orm_mode = True
+        
+class UpdateProduct(BaseModel):
     price : int
-    user : ShowUser
+    in_stock: bool
     
-    class Config:
-        orm_mode = True
+#     class Config:
+#         orm_mode = True
         
-class ShowProductCart(BaseModel):
-    name : str
-    description: str
+# class Cart(BaseModel):
+#     quantity : int
     
-    class Config:
-        orm_mode = True
+# class ShowCart(BaseModel):
+#     product : ShowProductCart
+#     quantity : int
+#     user : ShowUser
+    
+#     class Config:
+#         orm_mode = True
         
-class Cart(BaseModel):
-    quantity : int
-    
-class ShowCart(BaseModel):
-    product : ShowProductCart
-    quantity : int
-    user : ShowUser
-    
-    class Config:
-        orm_mode = True
-        
-class Order(BaseModel):
-    quantity : int
-    Products : ShowProductCart
-    users : ShowUser
-    
+# class Order(BaseModel):
+#     quantity : int
+#     Products : ShowProductCart
+#     users : ShowUser
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -64,6 +57,8 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     username: str 
     
+
+
 
     
     

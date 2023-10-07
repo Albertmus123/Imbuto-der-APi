@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends,HTTPException,status,Form
+from fastapi import APIRouter, Depends,HTTPException,status,Form,Request
 from typing import List
-from internal.database import engine, get_db
+from internal.database import get_db
 from internal import models, schemas
 from sqlalchemy.orm import Session
-from . import crud
 from fastapi.responses import JSONResponse
-from internal.login import get_current_admin_user,get_current_customer_user
+from internal.login import get_current_admin_user
+from fastapi_session import Session
+from fastapi.encoders import jsonable_encoder
+from sqlalchemy import and_ , or_
 
 
 
@@ -14,99 +16,36 @@ router = APIRouter(
     tags=["imbuto"],
 )
 
-@router.post('/create-product/',response_model=schemas.ShowProduct ,status_code=status.HTTP_201_CREATED)
+@router.post('/create-product/' ,status_code=status.HTTP_201_CREATED)
 async def create_product(request : schemas.Product , db: Session =Depends(get_db)
                          ,current_admin_user: schemas.User = Depends(get_current_admin_user)
                          ):
-    new_cat= models.Product(
+    new_product= models.Product(
         name =request.name,
         description =request.description,
         user_id =current_admin_user.id,
-        quantity= request.quantity,
         price = request.price
     )
-    db.add(new_cat)
+    db.add(new_product)
     db.commit()
-    db.refresh(new_cat)
-    return new_cat
+    db.refresh(new_product)
+    return new_product
 
-@router.get('/show-all/', response_model=List[schemas.ShowProduct],status_code=status.HTTP_200_OK)
-async def all_product(db: Session = Depends(get_db)
-                      ):
+
+@router.get('/show-all/',status_code=status.HTTP_200_OK)
+async def all_product(db: Session = Depends(get_db)):
     all_p =db.query(models.Product).all()
-    return all_p
-
-@router.post('/cart/{product_id}/')
-async def add_to_cat(product_id : int ,request: schemas.Cart ,db: Session = Depends(get_db),
-                     current_customer_user: schemas.User = Depends(get_current_customer_user)
-                     ):
-    product =crud.get_product(product_id,db)
-    if not product:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND
-                            , detail=" Product  Doesn't exist"
-                            )
-    cart = db.query(models.Cart).filter(models.Cart.user_id == current_customer_user.id)
-    for item in cart:
-        if item.product_id == product_id:
-            return {'message' : 'product is already in cart Go to update cart'}    
-    new_cat = models.Cart(
-        user_id = current_customer_user.id,
-        product_id =product.id,
-        quantity = request.quantity
-        
-    )
-    
-    # product_obj = db.query(models.Product).filter(models.Product.id == product_id)
-    prod_quantity = product.quantity
-    if prod_quantity < int(request.quantity):
-        raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE
-                            ,detail= "We don't have all this product in stock" 
-                            )
-    new_quantity = int(prod_quantity) - int(request.quantity)
-    product.quantity = new_quantity
-    db.add(new_cat)
-    db.commit()
-    return 'Product Added Successfully'
-
-@router.get('/cart-details/')
-async def cart(db : Session = Depends(get_db),current_customer_user: schemas.User = Depends(get_current_customer_user)):
-    cart = db.query(models.Cart).filter(models.Cart.user_id == current_customer_user.id)
-    total_price = 0
-    data=[]
-    for item in cart: 
+    data =[]
+    for item in all_p:
         items ={
-            'product_name' : item.product.name,
-            'quantity' : item.quantity,
-            'price' : item.product.price,
-            'total_price': item.product.price * item.quantity
+            "name" : item.name,
+            "description" : item.description,
+            "price" : item.price
         }
         data.append(items)
-        total_price = (item.product.price * item.quantity)+ total_price
-    total = {'Amount to pay' : total_price}
-    
-    return data ,total
+    return data
 
-@router.post('/order/{cart_id}/')
-async def make_order(cart_id : int , db : Session = Depends(get_db),current_customer_user: schemas.User = Depends(get_current_customer_user)):
-    cart = crud.get_cart(cart_id , db)
-    if not cart:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND
-                            , detail=" Cart doesn't exists!"
-                            )
 
-            
-    new_order = models.Order(
-        
-        quantity =cart.quantity,
-        user_id =cart.user_id,
-        product_id =cart.product_id
-    )
-    cart_to = db.query(models.Cart).filter(models.Cart.id == cart_id)
-    db.add(new_order)
-    cart_to.delete(synchronize_session=False)
-    db.commit()
-    db.refresh(new_order)
-    return 'order sent successfully !'
 
 @router.get('/product')
 async def user_product(db: Session = Depends(get_db)
@@ -114,45 +53,59 @@ async def user_product(db: Session = Depends(get_db)
            ):
     
     products = db.query(models.Product).filter(models.Product.user_id == current_admin_user.id)
-    
+    data = []
     for product in products:
         items = {
             'name' : product.name,
             'description' :product.description,
-            'quantity' : product.quantity,
+            'now in stock' : product.in_stock,
             'price' : product.price,
             'creator' : f' {product.user.username} with {product.user.email}'
         }
+        data.append(items)
 
-    return JSONResponse(items)
-
-@router.put("/update-cart/{product_id}/")
-async def update_cart_item(product_id: int, quantity: int = Form(),db: Session = Depends(get_db),
-                        current_customer_user: schemas.User = Depends(get_current_customer_user)
-                        ):
-    cart = db.query(models.Cart).filter(models.Cart.user_id == current_customer_user.id)
-    for item in cart:
-        if item.product_id == product_id:
-            item.quantity = quantity
-            db.commit()
-            return {"message": "Cart item updated"}
-    raise HTTPException(status_code=404, detail="Item not found in cart")
-
-@router.delete("/remove-from-cart/{product_id}")
-async def remove_from_cart(product_id: int,
-                           current_customer_user: schemas.User = Depends(get_current_customer_user)
-                           ,db : Session = Depends(get_db)):
-    cart = db.query(models.Cart).filter(models.Cart.user_id == current_customer_user.id)
-
-    for item in cart:
-        if item.product_id == product_id:
-            cart.remove(item)
-            db.commit()
-            return {"message": "Item removed from cart"}
-    raise HTTPException(status_code=404, detail="Item not found in cart")
+    return JSONResponse(data)
 
 
 
+@router.put("/{item_id}", status_code=200)
+async def update_item(item_id: int, item: schemas.UpdateProduct , db : Session =Depends(get_db),
+                      current_admin_user: schemas.User = Depends(get_current_admin_user)):
+    
+    filter_conditions = and_(models.Product.id == item_id, models.Product.user_id == current_admin_user.id)
+    items= db.query(models.Product).filter(filter_conditions).first()
+    if items is None:
+        raise HTTPException(status_code=404 , detail=" Product Doesn't exists")
+        
+    update_item_encoded = jsonable_encoder(item)
+    items.price =item.price
+    items.in_stock = item.in_stock
+    db.commit()
+    db.refresh(items)
+    data =[]
+    item_json= {
+        "name": items.name,
+        "description" : items.description,
+        "Updated Price" : items.price,
+        "Updated At" : items.updated_at
+    }
+    return item_json
+
+
+
+@router.delete("/{item_id}", status_code=200)
+async def delete_item(item_id: int, db : Session =Depends(get_db),
+                      current_admin_user: schemas.User = Depends(get_current_admin_user)):
+    
+    filter_conditions = and_(models.Product.id == item_id, models.Product.user_id == current_admin_user.id)
+    items= db.query(models.Product).filter(filter_conditions).first()
+    if items is None:
+        raise HTTPException(status_code=404 , detail=" Product Doesn't exists")
+        
+    # update_item_encoded = jsonable_encoder(item)
+    db.delete(items)
+    db.commit()
+    return "Product Deleted Successfully !"
 
 
     

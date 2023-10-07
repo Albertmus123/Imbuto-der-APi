@@ -31,8 +31,7 @@ async def create(request : schemas.User , db: Session = Depends(get_db)):
         username = request.username,
         email = request.email,
         password = hash_pass,
-        
-        
+        is_admin =True
     )
     db.add(new_user)
     db.commit()
