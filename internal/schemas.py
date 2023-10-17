@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Dict
 
 class User(BaseModel):
     username : str
@@ -30,24 +31,13 @@ class UpdateProduct(BaseModel):
     price : int
     in_stock: bool
     
-#     class Config:
-#         orm_mode = True
-        
-# class Cart(BaseModel):
-#     quantity : int
-    
-# class ShowCart(BaseModel):
-#     product : ShowProductCart
-#     quantity : int
-#     user : ShowUser
-    
-#     class Config:
-#         orm_mode = True
-        
-# class Order(BaseModel):
-#     quantity : int
-#     Products : ShowProductCart
-#     users : ShowUser
+class CartItem(BaseModel):
+    item_name: str
+    quantity : int
+
+class SessionData(BaseModel):
+    username: str
+    cart_items : Dict[int , CartItem] = {}
 
 class Token(BaseModel):
     access_token: str
